@@ -8,6 +8,12 @@
     <style>
         body { font-family: system-ui, -apple-system, sans-serif; }
         .admin-only { display: none; }
+        /* Hiệu ứng xám mờ cho vòng đấu đã kết thúc */
+        .round-completed {
+            opacity: 0.45;
+            filter: grayscale(40%);
+            transition: all 0.3s ease;
+        }
     </style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen p-4 pb-12">
@@ -104,7 +110,6 @@
     </div>
 
     <script>
-        // ĐIỀN THÔNG TIN KẾT NỐI JSONBIN CỦA BẠN VÀO ĐÂY
         const BIN_ID = "6a23e2ecda38895dfe903b0f"; 
         const MASTER_KEY = "$2a$10$yOZaOHQ26goa2W1RaXmo3OBw7rZy.Td1wg6qA1DYyRx.jRfvkpoWi"; 
 
@@ -113,9 +118,8 @@
         let activeCourtsCount = 1;
         let generatedSchedule = [];
         let isAdmin = false;
-        let currentLang = 'vi'; // Mặc định tiếng Việt
+        let currentLang = 'vi';
 
-        // Kho dữ liệu ngôn ngữ dịch thuật
         const i18n = {
             vi: {
                 langBtn: "🇯🇵 日本語",
@@ -147,7 +151,8 @@
                 btnBulkConfirm: "Xác nhận",
                 alertNotEnough: "Không đủ người sẵn sàng!",
                 confirmReset: "Bạn có chắc chắn muốn xóa hết toàn bộ thành viên và lịch đấu không?",
-                cloudError: "Lỗi kết nối đám mây!"
+                cloudError: "Lỗi kết nối đám mây!",
+                statusDone: "Đã kết thúc"
             },
             ja: {
                 langBtn: "🇻🇳 Tiếng Việt",
@@ -179,7 +184,8 @@
                 btnBulkConfirm: "確定",
                 alertNotEnough: "準備完了の人数が足りません！",
                 confirmReset: "すべてのメンバーとスケジュールを削除してもよろしいですか？",
-                cloudError: "クラウド接続エラー！"
+                cloudError: "クラウド接続エラー！",
+                statusDone: "終了"
             }
         };
 
@@ -195,18 +201,13 @@
 
         const LEVEL_POINTS = { 'A': 3, 'B': 2, 'C': 1 };
 
-        function toggleLanguage() {
-            currentLang = currentLang === 'vi' ? 'ja' : 'vi';
-            render();
-        }
-
+        function toggleLanguage() { currentLang = currentLang === 'vi' ? 'ja' : 'vi'; render(); }
         function getLevelStyles(level, isPlaying) {
             if (!isPlaying) return 'bg-slate-200 text-slate-400 line-through border-transparent';
             if (level === 'A') return 'bg-rose-50 text-rose-700 border-rose-200';
             if (level === 'C') return 'bg-amber-50 text-amber-700 border-amber-200';
             return 'bg-blue-50 text-blue-700 border-blue-200';
         }
-
         function getLevelBadge(level) {
             if (level === 'A') return '<span class="text-[9px] bg-rose-600 text-white px-1 rounded-sm mr-1 font-bold">A</span>';
             if (level === 'C') return '<span class="text-[9px] bg-amber-500 text-white px-1 rounded-sm mr-1 font-bold">C</span>';
@@ -258,6 +259,13 @@
         }
         function deleteMember(id) { if(!isAdmin) return; members = members.filter(m => m.id !== id); generatedSchedule = []; render(); }
         function toggleStatus(id) { if(!isAdmin) return; members = members.map(m => { if(m.id === id) m.status = m.status === 'playing' ? 'resting' : 'playing'; return m; }); generatedSchedule = []; render(); }
+
+        // Hàm click thay đổi trạng thái check kết thúc vòng đấu (chỉ Admin mới kích hoạt được)
+        function toggleRoundCheck(roundIndex) {
+            if (!isAdmin) return;
+            generatedSchedule[roundIndex].checked = !generatedSchedule[roundIndex].checked;
+            render();
+        }
 
         function optimizeMatchUp(players) {
             let combinations = [
@@ -312,7 +320,8 @@
                     if (playingIds.includes(m.id)) consecutiveRest[m.id] = 0;
                     else { consecutiveRest[m.id]++; restingPeople.push(m); }
                 });
-                tempSchedule.push({ roundNumber: r, matches: roundMatches, resting: restingPeople });
+                // Thêm thuộc tính checked mặc định là false khi sinh lịch
+                tempSchedule.push({ roundNumber: r, matches: roundMatches, resting: restingPeople, checked: false });
             }
             generatedSchedule = tempSchedule;
             render();
@@ -338,7 +347,6 @@
 
         function resetData() { if(confirm(i18n[currentLang].confirmReset)) { members = []; generatedSchedule = []; render(); } }
 
-        // HÀM VẼ GIAO DIỆN TÍCH HỢP ĐA NGÔN NGỮ
         function render() {
             const t = i18n[currentLang];
             
@@ -366,7 +374,6 @@
             document.getElementById('courtCountDisplay').innerText = activeCourtsCount;
             document.getElementById('roundsSettingDisplay').innerText = totalRoundsSetting;
 
-            // Dịch danh sách thành viên
             const memberListDiv = document.getElementById('memberList');
             memberListDiv.innerHTML = '';
             members.forEach(m => {
@@ -382,7 +389,6 @@
                 `;
             });
 
-            // Dịch lịch thi đấu công khai
             const scheduleContainer = document.getElementById('scheduleContainer');
             scheduleContainer.innerHTML = '';
             if (generatedSchedule.length === 0) {
@@ -390,11 +396,30 @@
                 return;
             }
 
-            generatedSchedule.forEach(round => {
+            generatedSchedule.forEach((round, rIndex) => {
+                const isChecked = round.checked === true;
+                
+                // Class xám mờ dựa trên trạng thái checked
+                let roundClass = "border border-slate-200 rounded-2xl p-4 bg-white shadow-xs space-y-3";
+                if (isChecked) {
+                    roundClass += " round-completed";
+                }
+
                 let roundHtml = `
-                    <div class="border border-slate-200 rounded-2xl p-4 bg-white shadow-xs space-y-3">
-                        <div class="flex justify-between items-center">
+                    <div class="${roundClass}">
+                        <div class="flex justify-between items-center border-b border-slate-100 pb-1.5">
                             <span class="text-xs font-extrabold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full uppercase tracking-wider">🔥 ${t.roundTxt} ${round.roundNumber}</span>
+                            
+                            <div>
+                                ${isAdmin ? `
+                                    <label class="flex items-center gap-1 text-xs font-bold text-slate-500 cursor-pointer select-none">
+                                        <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleRoundCheck(${rIndex})" class="w-4 h-4 accent-emerald-600 cursor-pointer">
+                                        <span class="${isChecked ? 'text-emerald-600' : ''}">${t.statusDone}</span>
+                                    </label>
+                                ` : isChecked ? `
+                                    <span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">✓ ${t.statusDone}</span>
+                                ` : ''}
+                            </div>
                         </div>
                         <div class="grid grid-cols-1 gap-3">`;
                 
