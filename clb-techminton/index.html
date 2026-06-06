@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sân Cầu Lông - Lịch Thi Đấu CLB</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; }
+        .admin-only { display: none; } /* Mặc định ẩn tất cả quyền admin */
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen p-4 pb-12">
+
+    <div class="max-w-xl mx-auto space-y-6">
+        <header class="text-center py-4 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-2xl shadow-md">
+            <h1 class="text-xl font-bold uppercase tracking-wide">Lịch Thi Đấu Cầu Lông</h1>
+            <p id="roleDisplay" class="text-xs opacity-90 mt-1">Chế độ: Đang tải dữ liệu...</p>
+        </header>
+
+        <section class="admin-only bg-amber-50 border border-amber-200 p-4 rounded-2xl shadow-sm space-y-2">
+            <h3 class="font-bold text-xs text-amber-800 uppercase">Bảng điều khiển Admin</h3>
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="loadDataFromCloud()" class="bg-white hover:bg-slate-50 text-slate-700 font-medium py-2 rounded-xl text-xs border border-slate-200 cursor-pointer">🔄 Tải data từ Cloud</button>
+                <button onclick="saveDataToCloud()" class="bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 rounded-xl text-xs cursor-pointer">☁️ Lưu & Phát sóng lịch</button>
+            </div>
+        </section>
+
+        <section class="bg-white p-4 rounded-2xl shadow-sm grid grid-cols-2 gap-4">
+            <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
+                <div>
+                    <h3 class="font-bold text-xs text-slate-700 uppercase">Số sân đấu</h3>
+                </div>
+                <div class="flex items-center gap-1.5 p-1">
+                    <button onclick="changeCourts(-1)" class="admin-only w-6 h-6 font-bold text-slate-700 bg-white rounded border border-slate-200 cursor-pointer">-</button>
+                    <span id="courtCountDisplay" class="w-6 text-center font-bold text-indigo-600 text-sm">1</span>
+                    <button onclick="changeCourts(1)" class="admin-only w-6 h-6 font-bold text-slate-700 bg-white rounded border border-slate-200 cursor-pointer">+</button>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
+                <div>
+                    <h3 class="font-bold text-xs text-slate-700 uppercase">Tổng số vòng</h3>
+                </div>
+                <div class="flex items-center gap-1.5 p-1">
+                    <button onclick="changeRoundsSetting(-1)" class="admin-only w-6 h-6 font-bold text-slate-700 bg-white rounded border border-slate-200 cursor-pointer">-</button>
+                    <span id="roundsSettingDisplay" class="w-6 text-center font-bold text-indigo-600 text-sm">5</span>
+                    <button onclick="changeRoundsSetting(1)" class="admin-only w-6 h-6 font-bold text-slate-700 bg-white rounded border border-slate-200 cursor-pointer">+</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="bg-white p-4 rounded-2xl shadow-sm space-y-3">
+            <div class="flex justify-between items-center">
+                <h2 class="font-bold text-sm text-slate-500 uppercase tracking-wider">1. Danh sách Thành Viên</h2>
+                <div class="admin-only gap-2 flex">
+                    <button onclick="openBulkModal()" class="text-xs text-indigo-600 font-bold bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-100 cursor-pointer">📝 Thêm hàng loạt</button>
+                    <button onclick="resetData()" class="text-xs text-red-500 font-medium cursor-pointer">Xóa hết</button>
+                </div>
+            </div>
+            <div class="admin-only grid grid-cols-3 gap-2">
+                <input id="memberNameInput" type="text" placeholder="Tên thành viên..." class="col-span-2 px-3 py-2 border border-slate-200 rounded-xl text-sm">
+                <select id="memberLevelInput" class="px-2 py-2 border border-slate-200 rounded-xl bg-white text-sm font-bold text-slate-700">
+                    <option value="3">Level A</option>
+                    <option value="2" selected>Level B</option>
+                    <option value="1">Level C</option>
+                </select>
+            </div>
+            <button onclick="addMember()" class="admin-only w-full bg-indigo-600 text-white font-medium py-2 rounded-xl text-sm cursor-pointer">+ Thêm Thành Viên</button>
+            <div id="memberList" class="flex flex-wrap gap-2 pt-2"></div>
+        </section>
+
+        <section class="bg-white p-4 rounded-2xl shadow-sm space-y-4">
+            <div class="border-b border-slate-100 pb-2">
+                <h2 class="font-bold text-sm text-slate-500 uppercase tracking-wider">2. Lịch Trình Các Vòng Đấu</h2>
+            </div>
+
+            <button onclick="generateAllRounds()" class="admin-only w-full bg-gradient-to-r from-indigo-600 to-blue-500 text-white font-bold py-3 rounded-xl shadow-md cursor-pointer">
+                🎲 Tự Động Xếp Toàn Bộ Vòng Đấu
+            </button>
+
+            <div id="scheduleContainer" class="space-y-6"></div>
+        </section>
+    </div>
+
+    <div id="bulkModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl w-full max-w-md p-5 space-y-4 shadow-xl">
+            <textarea id="bulkInput" rows="8" placeholder="Nguyễn Văn A - A" class="w-full p-3 border border-slate-200 rounded-xl text-sm font-mono"></textarea>
+            <div class="flex justify-end gap-2 text-sm font-medium">
+                <button onclick="closeBulkModal()" class="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl cursor-pointer">Hủy</button>
+                <button onclick="submitBulkMembers()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl cursor-pointer">Xác nhận</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // CẤU HÌNH CLOUD CỦA BẠN (Thay thông tin của bạn vào đây)
+        const BIN_ID = "6a23e2ecda38895dfe903b0f"; // Điền Bin ID từ jsonbin.io
+        const MASTER_KEY = "$2a$10$yOZaOHQ26goa2W1RaXmo3OBw7rZy.Td1wg6qA1DYyRx.jRfvkpoWi"; // Điền Master Key từ jsonbin.io
+
+        let members = [];
+        let totalRoundsSetting = 5;
+        let activeCourtsCount = 1;
+        let generatedSchedule = [];
+        let isAdmin = false;
+
+        // KIỂM TRA QUYỀN TRÊN URL (?role=admin)
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('role') === 'admin') {
+            isAdmin = true;
+        }
+
+        // Cập nhật giao diện ẩn/hiện dựa trên quyền
+        if (isAdmin) {
+            document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex');
+            document.getElementById('roleDisplay').innerText = "🔑 Chế độ: Quản trị viên (Admin)";
+        } else {
+            document.getElementById('roleDisplay').innerText = "📱 Chế độ: Thành viên (Chỉ xem lịch)";
+        }
+
+        // HÀM KHỞI ĐỘNG: TỰ ĐỘNG LẤY DATA TỪ ĐÁM MÂY KHI MỞ TRANG
+        async function loadDataFromCloud() {
+            if (!BIN_ID || BIN_ID.includes("xxxx")) {
+                document.getElementById('scheduleContainer').innerHTML = `<div class="text-center text-xs text-rose-500 font-bold p-4">Vui lòng cấu hình BIN_ID và MASTER_KEY trong đoạn mã script để kết nối đám mây!</div>`;
+                return;
+            }
+            try {
+                const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+                    headers: { "X-Master-Key": MASTER_KEY }
+                });
+                const resData = await res.json();
+                let data = resData.record;
+                members = data.members || [];
+                totalRoundsSetting = data.totalRoundsSetting || 5;
+                activeCourtsCount = data.activeCourtsCount || 1;
+                generatedSchedule = data.generatedSchedule || [];
+                render();
+            } catch (err) {
+                console.error("Lỗi tải data:", err);
+            }
+        }
+
+        // HÀM LƯU DATA LÊN ĐÁM MÂY (CHỈ ADMIN BẤM)
+        async function saveDataToCloud() {
+            if (!isAdmin) return;
+            try {
+                document.getElementById('roleDisplay').innerText = "⏳ Đang đồng bộ lên mây...";
+                await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+                    method: 'PUT',
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-Master-Key": MASTER_KEY
+                    },
+                    body: JSON.stringify({ members, totalRoundsSetting, activeCourtsCount, generatedSchedule })
+                });
+                document.getElementById('roleDisplay').innerText = "🔑 Đã phát sóng lịch mới lên Web!";
+                render();
+            } catch (err) {
+                alert("Lỗi lưu đám mây, hãy kiểm tra mạng!");
+            }
+        }
+
+        // --- CÁC LOGIC XẾP TRẬN (GIỮ NGUYÊN) ---
+        function changeCourts(val) {
+            if(!isAdmin) return;
+            activeCourtsCount = Math.max(1, activeCourtsCount + val);
+            render();
+        }
+        function changeRoundsSetting(val) {
+            if(!isAdmin) return;
+            totalRoundsSetting = Math.max(1, totalRoundsSetting + val);
+            render();
+        }
+        function addMember() {
+            if(!isAdmin) return;
+            const name = document.getElementById('memberNameInput').value.trim();
+            if (!name) return;
+            members.push({ id: 'm_'+Date.now(), name, level: parseInt(document.getElementById('memberLevelInput').value), status: 'playing' });
+            document.getElementById('memberNameInput').value = '';
+            render();
+        }
+        function deleteMember(id) {
+            if(!isAdmin) return;
+            members = members.filter(m => m.id !== id);
+            generatedSchedule = [];
+            render();
+        }
+        function toggleStatus(id) {
+            if(!isAdmin) return;
+            members = members.map(m => { if(m.id === id) m.status = m.status === 'playing' ? 'resting' : 'playing'; return m; });
+            generatedSchedule = [];
+            render();
+        }
+
+        function generateAllRounds() {
+            if(!isAdmin) return;
+            let availableMembers = members.filter(m => m.status === 'playing');
+            let requiredPlayers = activeCourtsCount * 4;
+            if (availableMembers.length < requiredPlayers) return alert("Không đủ người!");
+
+            let playedCounts = {}, historyPartners = {}, consecutiveRest = {};
+            availableMembers.forEach(m => { playedCounts[m.id] = 0; consecutiveRest[m.id] = 0; });
+
+            let tempSchedule = [];
+            for (let r = 1; r <= totalRoundsSetting; r++) {
+                let mustPlayPool = [], normalPool = [];
+                availableMembers.forEach(m => { if (consecutiveRest[m.id] >= 2) mustPlayPool.push(m); else normalPool.push(m); });
+                normalPool.sort((a, b) => playedCounts[a.id] - playedCounts[b.id] || Math.random() - 0.5);
+                let pool = [...mustPlayPool, ...normalPool.slice(0, requiredPlayers - mustPlayPool.length)];
+                
+                let bestArrangement = [...pool].sort(() => Math.random() - 0.5);
+                let roundMatches = [];
+                let playingIds = [];
+
+                for (let i = 0; i < activeCourtsCount; i++) {
+                    let idx = i * 4;
+                    let p1 = bestArrangement[idx], p2 = bestArrangement[idx+1], p3 = bestArrangement[idx+2], p4 = bestArrangement[idx+3];
+                    playedCounts[p1.id]++; playedCounts[p2.id]++; playedCounts[p3.id]++; playedCounts[p4.id]++;
+                    playingIds.push(p1.id, p2.id, p3.id, p4.id);
+                    roundMatches.push({ courtNumber: i + 1, teamA: [p1, p2], teamB: [p3, p4] });
+                }
+
+                let restingPeople = [];
+                availableMembers.forEach(m => {
+                    if (playingIds.includes(m.id)) consecutiveRest[m.id] = 0;
+                    else { consecutiveRest[m.id]++; restingPeople.push(m); }
+                });
+                tempSchedule.push({ roundNumber: r, matches: roundMatches, resting: restingPeople });
+            }
+            generatedSchedule = tempSchedule;
+            render();
+        }
+
+        // --- HÀM VẼ GIAO DIỆN ---
+        function render() {
+            document.getElementById('courtCountDisplay').innerText = activeCourtsCount;
+            document.getElementById('roundsSettingDisplay').innerText = totalRoundsSetting;
+
+            const memberListDiv = document.getElementById('memberList');
+            memberListDiv.innerHTML = '';
+            members.forEach(m => {
+                const isPlaying = m.status === 'playing';
+                const baseBadges = isPlaying ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-200 text-slate-400 line-through';
+                memberListDiv.innerHTML += `
+                    <div class="flex items-center border rounded-xl px-2 py-1 text-xs font-semibold ${baseBadges}">
+                        <span ${isAdmin ? `onclick="toggleStatus('${m.id}')"` : ''} class="${isAdmin ? 'cursor-pointer' : ''}">
+                            ${isPlaying ? '🟢' : '⚫'} ${m.name}
+                        </span>
+                        ${isAdmin ? `<button onclick="deleteMember('${m.id}')" class="text-slate-400 hover:text-red-500 font-bold ml-1 text-sm cursor-pointer">×</button>` : ''}
+                    </div>
+                `;
+            });
+
+            const scheduleContainer = document.getElementById('scheduleContainer');
+            scheduleContainer.innerHTML = '';
+            if (generatedSchedule.length === 0) {
+                scheduleContainer.innerHTML = `<div class="text-center py-8 text-xs text-slate-400">Chưa có lịch đấu được phát sóng.</div>`;
+                return;
+            }
+
+            generatedSchedule.forEach(round => {
+                let roundHtml = `<div class="border border-slate-200 rounded-2xl p-4 bg-white space-y-3">
+                    <span class="text-xs font-extrabold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full uppercase">🔥 VÒNG ĐẤU SỐ ${round.roundNumber}</span>
+                    <div class="grid grid-cols-1 gap-2.5">`;
+                round.matches.forEach(match => {
+                    roundHtml += `
+                        <div class="bg-slate-50 border border-slate-100 rounded-xl p-2.5 grid grid-cols-7 items-center text-center text-xs font-semibold">
+                            <div class="col-span-3 bg-white p-2 rounded-xl border border-slate-100 shadow-2xs text-left px-3">
+                                <div>${match.teamA[0].name}</div><div>${match.teamA[1].name}</div>
+                            </div>
+                            <div class="col-span-1 text-slate-300 italic">vs</div>
+                            <div class="col-span-3 bg-white p-2 rounded-xl border border-slate-100 shadow-2xs text-left px-3">
+                                <div>${match.teamB[0].name}</div><div>${match.teamB[1].name}</div>
+                            </div>
+                        </div>`;
+                });
+                if (round.resting && round.resting.length > 0) {
+                    roundHtml += `<div class="text-[10px] text-slate-400 bg-slate-50 p-2 rounded-xl">💤 Nghỉ: ${round.resting.map(m=>m.name).join(', ')}</div>`;
+                }
+                roundHtml += `</div></div>`;
+                scheduleContainer.innerHTML += roundHtml;
+            });
+        }
+
+        // Chạy tải dữ liệu ngay khi mở web
+        loadDataFromCloud();
+    </script>
+</body>
+</html>
