@@ -61,9 +61,7 @@
             <div class="admin-only grid grid-cols-3 gap-2">
                 <input id="memberNameInput" type="text" placeholder="Tên thành viên..." class="col-span-2 px-3 py-2 border border-slate-200 rounded-xl text-sm">
                 <select id="memberLevelInput" class="px-2 py-2 border border-slate-200 rounded-xl bg-white text-sm font-bold text-slate-700">
-                    <option value="3">Level A</option>
                     <option value="2" selected>Level B</option>
-                    <option value="1">Level C</option>
                 </select>
             </div>
             <button onclick="addMember()" class="admin-only w-full bg-indigo-600 text-white font-medium py-2 rounded-xl text-sm cursor-pointer justify-center items-center">+ Thêm Thành Viên</button>
@@ -219,15 +217,11 @@
                     let p1 = bestArrangement[idx], p2 = bestArrangement[idx+1], p3 = bestArrangement[idx+2], p4 = bestArrangement[idx+3];
                     playedCounts[p1.id]++; playedCounts[p2.id]++; playedCounts[p3.id]++; playedCounts[p4.id]++;
                     playingIds.push(p1.id, p2.id, p3.id, p4.id);
-                    
-                    const scorePool = ["21-15", "21-18", "21-11", "22-20", "15-21", "11-21", "19-21"];
-                    const randomScore = scorePool[Math.floor(Math.random() * scorePool.length)];
 
                     roundMatches.push({ 
                         courtNumber: i + 1, 
                         teamA: [p1, p2], 
-                        teamB: [p3, p4],
-                        scoreDisplay: `${randomScore} | 0-0`
+                        teamB: [p3, p4]
                     });
                 }
 
@@ -242,7 +236,6 @@
             render();
         }
 
-        // SỬA LỖI MODAL THÊM HÀNG LOẠT
         function openBulkModal() { 
             document.getElementById('bulkInput').value = '';
             document.getElementById('bulkModal').classList.remove('hidden'); 
@@ -253,19 +246,16 @@
         
         function submitBulkMembers() {
             const text = document.getElementById('bulkInput').value;
-            let added = 0;
             text.split('\n').forEach(line => {
                 let name = line.trim(); 
                 if(!name) return;
                 members.push({ id: 'm_'+Date.now()+Math.random(), name, level: 2, status: 'playing' });
-                added++;
             });
-            generatedSchedule = []; // Reset lịch cũ khi danh sách đổi
+            generatedSchedule = [];
             closeBulkModal();
             render();
         }
 
-        // SỬA LỖI NÚT XÓA HẾT
         function resetData() { 
             if(confirm("Bạn có chắc chắn muốn xóa hết toàn bộ thành viên và lịch đấu không?")) { 
                 members = []; 
@@ -323,10 +313,6 @@
                                     <div class="truncate text-slate-700">${match.teamB[0].name}</div>
                                     <div class="truncate text-slate-700 mt-1">${match.teamB[1].name}</div>
                                 </div>
-                            </div>
-
-                            <div class="bg-slate-900 text-slate-100 px-3 py-1 rounded-md text-[10px] font-mono tracking-wider font-bold shadow-xs">
-                                ${match.scoreDisplay}
                             </div>
                         </div>`;
                 });
