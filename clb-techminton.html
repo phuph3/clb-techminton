@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sân Cầu Lông Xoay Vòng - Khóa Nghỉ Quá 2 Vòng</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen p-4 pb-12">
+
+    <div class="max-w-xl mx-auto space-y-6">
+        <header class="text-center py-4 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-2xl shadow-md">
+            <h1 class="text-xl font-bold uppercase tracking-wide">Sân Cầu Lông Xoay Vòng</h1>
+            <p class="text-xs opacity-90 mt-1">Thuật toán cải tiến • Cam kết không nghỉ quá 2 vòng liên tiếp</p>
+        </header>
+
+        <!-- CẤU HÌNH BUỔI TẬP -->
+        <section class="bg-white p-4 rounded-2xl shadow-sm grid grid-cols-2 gap-4">
+            <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
+                <div>
+                    <h3 class="font-bold text-xs text-slate-700 uppercase">Số sân đấu</h3>
+                    <p class="text-[10px] text-slate-400">Hoạt động cùng lúc</p>
+                </div>
+                <div class="flex items-center gap-1.5 bg-white p-1 rounded-lg border border-slate-200">
+                    <button onclick="changeCourts(-1)" class="w-6 h-6 font-bold text-slate-700 bg-slate-50 rounded shadow-xs hover:bg-slate-100 cursor-pointer flex items-center justify-center text-sm">-</button>
+                    <span id="courtCountDisplay" class="w-6 text-center font-bold text-indigo-600 text-sm">1</span>
+                    <button onclick="changeCourts(1)" class="w-6 h-6 font-bold text-slate-700 bg-slate-50 rounded shadow-xs hover:bg-slate-100 cursor-pointer flex items-center justify-center text-sm">+</button>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
+                <div>
+                    <h3 class="font-bold text-xs text-slate-700 uppercase">Tổng số vòng</h3>
+                    <p class="text-[10px] text-slate-400">Muốn đánh trong buổi</p>
+                </div>
+                <div class="flex items-center gap-1.5 bg-white p-1 rounded-lg border border-slate-200">
+                    <button onclick="changeRoundsSetting(-1)" class="w-6 h-6 font-bold text-slate-700 bg-slate-50 rounded shadow-xs hover:bg-slate-100 cursor-pointer flex items-center justify-center text-sm">-</button>
+                    <span id="roundsSettingDisplay" class="w-6 text-center font-bold text-indigo-600 text-sm">5</span>
+                    <button onclick="changeRoundsSetting(1)" class="w-6 h-6 font-bold text-slate-700 bg-slate-50 rounded shadow-xs hover:bg-slate-100 cursor-pointer flex items-center justify-center text-sm">+</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- QUẢN LÝ THÀNH VIÊN -->
+        <section class="bg-white p-4 rounded-2xl shadow-sm space-y-3">
+            <div class="flex justify-between items-center">
+                <h2 class="font-bold text-sm text-slate-500 uppercase tracking-wider">1. Danh sách Thành Viên</h2>
+                <div class="flex gap-2">
+                    <button onclick="openBulkModal()" class="text-xs text-indigo-600 hover:text-indigo-800 font-bold bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-100 cursor-pointer">📝 Thêm hàng loạt</button>
+                    <button onclick="resetData()" class="text-xs text-red-500 hover:text-red-700 font-medium cursor-pointer">Xóa hết</button>
+                </div>
+            </div>
+            <div class="grid grid-cols-3 gap-2">
+                <input id="memberNameInput" type="text" placeholder="Tên thành viên..." class="col-span-2 px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                <select id="memberLevelInput" class="px-2 py-2 border border-slate-200 rounded-xl bg-white text-sm font-bold text-slate-700">
+                    <option value="3">Level A (Khá)</option>
+                    <option value="2" selected>Level B (Trung bình)</option>
+                    <option value="1">Level C (Yếu)</option>
+                </select>
+            </div>
+            <button onclick="addMember()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded-xl text-sm transition shadow-sm cursor-pointer">+ Thêm Thành Viên</button>
+            <div id="memberList" class="flex flex-wrap gap-2 pt-2"></div>
+        </section>
+
+        <!-- LỊCH TRÌNH CÁC VÒNG ĐẤU -->
+        <section class="bg-white p-4 rounded-2xl shadow-sm space-y-4">
+            <div class="border-b border-slate-100 pb-2">
+                <h2 class="font-bold text-sm text-slate-500 uppercase tracking-wider">2. Lịch Trình Các Vòng Đấu</h2>
+            </div>
+
+            <button onclick="generateAllRounds()" class="w-full bg-gradient-to-r from-indigo-600 to-blue-500 hover:from-indigo-700 hover:to-blue-600 text-white font-bold py-3 rounded-xl shadow-md transition transform active:scale-95 text-center block cursor-pointer">
+                🎲 Tự Động Xếp Toàn Bộ Vòng Đấu
+            </button>
+
+            <div id="scheduleContainer" class="space-y-6"></div>
+        </section>
+    </div>
+
+    <!-- POPUP THÊM HÀNG LOẠT -->
+    <div id="bulkModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl w-full max-w-md p-5 space-y-4 shadow-xl">
+            <div>
+                <h3 class="font-bold text-base text-slate-800">Thêm thành viên hàng loạt</h3>
+                <p class="text-xs text-slate-400 mt-0.5">Mỗi người một dòng. Thêm level bằng cách gõ gạch ngang phía sau (VD: An - A).</p>
+            </div>
+            <textarea id="bulkInput" rows="8" placeholder="Nguyễn Văn A - A&#10;Trần Thị B - B&#10;Lê Văn C - C&#10;Anh Tuấn" class="w-full p-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"></textarea>
+            <div class="flex justify-end gap-2 text-sm font-medium">
+                <button onclick="closeBulkModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl cursor-pointer">Hủy</button>
+                <button onclick="submitBulkMembers()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm cursor-pointer">Xác nhận thêm</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let members = JSON.parse(localStorage.getItem('anti_loop_v3_members')) || [];
+        let totalRoundsSetting = parseInt(localStorage.getItem('anti_loop_v3_rounds_setting')) || 5;
+        let activeCourtsCount = parseInt(localStorage.getItem('anti_loop_v3_courts_count')) || 1;
+        let generatedSchedule = JSON.parse(localStorage.getItem('anti_loop_v3_schedule')) || [];
+
+        const levelLabels = { 3: 'A', 2: 'B', 1: 'C' };
+        const levelBadges = {
+            3: 'bg-rose-50 text-rose-700 border-rose-200',
+            2: 'bg-amber-50 text-amber-700 border-amber-200',
+            1: 'bg-sky-50 text-sky-700 border-sky-200'
+        };
+
+        function saveData() {
+            localStorage.setItem('anti_loop_v3_members', JSON.stringify(members));
+            localStorage.setItem('anti_loop_v3_rounds_setting', totalRoundsSetting);
+            localStorage.setItem('anti_loop_v3_courts_count', activeCourtsCount);
+            localStorage.setItem('anti_loop_v3_schedule', JSON.stringify(generatedSchedule));
+            render();
+        }
+
+        function changeCourts(val) {
+            let newCount = activeCourtsCount + val;
+            if (newCount < 1) newCount = 1;
+            if (newCount > 5) return alert("Hỗ trợ tối đa 5 sân!");
+            activeCourtsCount = newCount;
+            saveData();
+        }
+
+        function changeRoundsSetting(val) {
+            let newRounds = totalRoundsSetting + val;
+            if (newRounds < 1) newRounds = 1;
+            if (newRounds > 20) return alert("Hỗ trợ tối đa cấu hình 20 vòng!");
+            totalRoundsSetting = newRounds;
+            saveData();
+        }
+
+        function addMember() {
+            const input = document.getElementById('memberNameInput');
+            const levelSelect = document.getElementById('memberLevelInput');
+            const name = input.value.trim();
+            if (!name) return;
+
+            members.push({
+                id: 'm_' + Date.now() + Math.random().toString(36).substr(2, 4),
+                name: name,
+                level: parseInt(levelSelect.value),
+                status: 'playing'
+            });
+            input.value = '';
+            saveData();
+        }
+
+        function openBulkModal() {
+            document.getElementById('bulkInput').value = '';
+            document.getElementById('bulkModal').classList.remove('hidden');
+        }
+
+        function closeBulkModal() {
+            document.getElementById('bulkModal').classList.add('hidden');
+        }
+
+        function submitBulkMembers() {
+            const text = document.getElementById('bulkInput').value;
+            const lines = text.split('\n');
+            let addedCount = 0;
+
+            lines.forEach(line => {
+                let cleanLine = line.trim();
+                if (!cleanLine) return;
+
+                let name = cleanLine;
+                let level = 2;
+
+                let parts = cleanLine.split(/[-|]/);
+                if (parts.length > 1) {
+                    name = parts[0].trim();
+                    let lvStr = parts[1].trim().toUpperCase();
+                    if (lvStr === 'A') level = 3;
+                    else if (lvStr === 'C') level = 1;
+                    else level = 2;
+                }
+
+                if (name) {
+                    members.push({
+                        id: 'm_' + Date.now() + Math.random().toString(36).substr(2, 4) + addedCount,
+                        name: name,
+                        level: level,
+                        status: 'playing'
+                    });
+                    addedCount++;
+                }
+            });
+
+            if (addedCount > 0) {
+                saveData();
+                closeBulkModal();
+                alert(`Đã thêm thành công ${addedCount} thành viên!`);
+            }
+        }
+
+        function deleteMember(id) {
+            members = members.filter(m => m.id !== id);
+            generatedSchedule = [];
+            saveData();
+        }
+
+        function toggleStatus(id) {
+            members = members.map(m => {
+                if (m.id === id) m.status = m.status === 'playing' ? 'resting' : 'playing';
+                return m;
+            });
+            generatedSchedule = [];
+            saveData();
+        }
+
+        // THUẬT TOÁN ĐA VÒNG THÔNG MINH - KHÓA CỨNG ĐIỀU KIỆN NGHỈ LIÊN TIẾP
+        function generateAllRounds() {
+            let availableMembers = members.filter(m => m.status === 'playing');
+            let requiredPlayers = activeCourtsCount * 4;
+
+            if (availableMembers.length < requiredPlayers) {
+                alert(`Cần tối thiểu ${requiredPlayers} người sẵn sàng để xếp vào ${activeCourtsCount} sân.`);
+                return;
+            }
+
+            // Khởi tạo các bộ theo dõi tần suất phục vụ giải thuật
+            let playedCounts = {};
+            let historyPartners = {};
+            let consecutiveRest = {}; // Theo dõi số vòng nghỉ liên tục của từng người
+
+            availableMembers.forEach(m => {
+                playedCounts[m.id] = 0;
+                consecutiveRest[m.id] = 0;
+            });
+
+            function getPartnerHistory(id1, id2) {
+                let key = id1 < id2 ? `${id1}_${id2}` : `${id2}_${id1}`;
+                return historyPartners[key] || 0;
+            }
+
+            function addPartnerHistory(id1, id2) {
+                let key = id1 < id2 ? `${id1}_${id2}` : `${id2}_${id1}`;
+                historyPartners[key] = (historyPartners[key] || 0) + 1;
+            }
+
+            let tempSchedule = [];
+
+            for (let r = 1; r <= totalRoundsSetting; r++) {
+                // Phân nhóm thành viên dựa trên nguy cơ "ngồi ngoài quá lâu"
+                let mustPlayPool = [];
+                let normalPool = [];
+
+                availableMembers.forEach(m => {
+                    // Nếu đã nghỉ từ 2 vòng liên tiếp trở lên, ép buộc phải cho vào danh sách thi đấu vòng này
+                    if (consecutiveRest[m.id] >= 2) {
+                        mustPlayPool.push(m);
+                    } else {
+                        normalPool.push(m);
+                    }
+                });
+
+                // Kiểm tra xem số lượng người bắt buộc chơi có vượt quá sức chứa của sân không
+                if (mustPlayPool.length > requiredPlayers) {
+                    alert(`Cảnh báo logic toán học ở Vòng ${r}: Số người đã nghỉ quá 2 vòng (${mustPlayPool.length}) vượt quá số chỗ trên sân (${requiredPlayers}). Vui lòng giảm bớt số sân hoạt động hoặc thêm thành viên.`);
+                    return;
+                }
+
+                // Sắp xếp nhóm bình thường theo số trận đã chơi (ai chơi ít xếp trước)
+                normalPool.sort((a, b) => {
+                    if (playedCounts[a.id] !== playedCounts[b.id]) return playedCounts[a.id] - playedCounts[b.id];
+                    return Math.random() - 0.5;
+                });
+
+                // Gom đủ quân số cho vòng đấu (lấy toàn bộ 'bắt buộc' + bù thêm từ nhóm 'bình thường')
+                let neededFromNormal = requiredPlayers - mustPlayPool.length;
+                let pool = [...mustPlayPool, ...normalPool.slice(0, neededFromNormal)];
+
+                let bestArrangement = null;
+                let lowestPenalty = Infinity;
+
+                // Thử nghiệm hoán vị tối ưu
+                for (let k = 0; k < 200; k++) {
+                    let tempPool = [...pool].sort(() => Math.random() - 0.5);
+                    let currentPenalty = 0;
+
+                    for (let i = 0; i < activeCourtsCount; i++) {
+                        let idx = i * 4;
+                        let p1 = tempPool[idx], p2 = tempPool[idx+1], p3 = tempPool[idx+2], p4 = tempPool[idx+3];
+
+                        currentPenalty += getPartnerHistory(p1.id, p2.id) * 30;
+                        currentPenalty += getPartnerHistory(p3.id, p4.id) * 30;
+
+                        let gap = Math.abs((p1.level + p2.level) - (p3.level + p4.level));
+                        currentPenalty += gap * 4;
+                    }
+
+                    if (currentPenalty < lowestPenalty) {
+                        lowestPenalty = currentPenalty;
+                        bestArrangement = tempPool;
+                    }
+                    if (lowestPenalty === 0) break;
+                }
+
+                // Chốt lịch thi đấu vòng hiện hành
+                let roundMatches = [];
+                let playingIds = [];
+
+                for (let i = 0; i < activeCourtsCount; i++) {
+                    let idx = i * 4;
+                    let p1 = bestArrangement[idx], p2 = bestArrangement[idx+1], p3 = bestArrangement[idx+2], p4 = bestArrangement[idx+3];
+                    
+                    playedCounts[p1.id]++; playedCounts[p2.id]++; playedCounts[p3.id]++; playedCounts[p4.id]++;
+                    playingIds.push(p1.id, p2.id, p3.id, p4.id);
+                    
+                    addPartnerHistory(p1.id, p2.id);
+                    addPartnerHistory(p3.id, p4.id);
+
+                    roundMatches.push({
+                        courtNumber: i + 1,
+                        teamA: [p1, p2],
+                        teamB: [p3, p4]
+                    });
+                }
+
+                // Cập nhật lại chỉ số nghỉ liên tục (consecutiveRest) cho toàn bộ thành viên
+                let restingPeople = [];
+                availableMembers.forEach(m => {
+                    if (playingIds.includes(m.id)) {
+                        consecutiveRest[m.id] = 0; // Được đánh -> Trả về số 0
+                    } else {
+                        consecutiveRest[m.id]++; // Phải nghỉ -> Tăng thêm 1 vòng
+                        restingPeople.push(m);
+                    }
+                });
+
+                tempSchedule.push({
+                    roundNumber: r,
+                    matches: roundMatches,
+                    resting: restingPeople
+                });
+            }
+
+            generatedSchedule = tempSchedule;
+            saveData();
+        }
+
+        function resetData() {
+            if (confirm("Xóa sạch toàn bộ dữ liệu thành viên và lịch đấu để làm lại?")) {
+                members = []; generatedSchedule = [];
+                saveData();
+            }
+        }
+
+        function render() {
+            document.getElementById('courtCountDisplay').innerText = activeCourtsCount;
+            document.getElementById('roundsSettingDisplay').innerText = totalRoundsSetting;
+
+            const memberListDiv = document.getElementById('memberList');
+            memberListDiv.innerHTML = '';
+            members.forEach(m => {
+                const isPlaying = m.status === 'playing';
+                const colorClass = isPlaying ? levelBadges[m.level || 2] : 'bg-slate-200 text-slate-400 line-through border-transparent';
+                memberListDiv.innerHTML += `
+                    <div class="flex items-center border rounded-xl px-2 py-1 gap-1 text-xs shadow-sm font-semibold ${colorClass}">
+                        <span onclick="toggleStatus('${m.id}')" class="cursor-pointer select-none">
+                            ${isPlaying ? '🟢' : '⚫'} ${m.name} (${levelLabels[m.level || 2]})
+                        </span>
+                        <button onclick="deleteMember('${m.id}')" class="text-slate-400 hover:text-red-500 font-bold ml-1 text-sm cursor-pointer">×</button>
+                    </div>
+                `;
+            });
+
+            const scheduleContainer = document.getElementById('scheduleContainer');
+            scheduleContainer.innerHTML = '';
+
+            if (generatedSchedule.length === 0) {
+                scheduleContainer.innerHTML = `<div class="text-center py-8 border-2 border-dashed border-slate-200 rounded-xl text-xs text-slate-400 font-medium">Chưa có lịch đấu. Hãy thiết lập số sân, số vòng rồi bấm nút "Tự Động Xếp Toàn Bộ Vòng Đấu" ở trên.</div>`;
+                return;
+            }
+
+            generatedSchedule.forEach(round => {
+                let roundHtml = `
+                    <div class="border border-slate-200 rounded-2xl p-4 bg-white shadow-xs space-y-3">
+                        <div class="flex justify-between items-center border-b border-slate-100 pb-2">
+                            <span class="text-sm font-extrabold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full uppercase tracking-wider">🔥 VÒNG ĐẤU SỐ ${round.roundNumber}</span>
+                        </div>
+                        <div class="grid grid-cols-1 gap-3">
+                `;
+
+                round.matches.forEach(match => {
+                    roundHtml += `
+                        <div class="bg-slate-50 border border-slate-100 rounded-xl p-3 space-y-2">
+                            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">🏸 Sân số ${match.courtNumber}</div>
+                            <div class="grid grid-cols-7 items-center text-center font-semibold text-xs">
+                                <div class="col-span-3 bg-white p-2 rounded-xl border border-slate-100 shadow-2xs space-y-1">
+                                    <div class="text-slate-700 truncate flex justify-between px-1"><span>${match.teamA[0].name}</span><span class="text-[9px] font-bold opacity-40">(${levelLabels[match.teamA[0].level]})</span></div>
+                                    <div class="text-slate-700 truncate flex justify-between px-1"><span>${match.teamA[1].name}</span><span class="text-[9px] font-bold opacity-40">(${levelLabels[match.teamA[1].level]})</span></div>
+                                </div>
+                                <div class="col-span-1 text-slate-300 italic text-[11px]">VS</div>
+                                <div class="col-span-3 bg-white p-2 rounded-xl border border-slate-100 shadow-2xs space-y-1">
+                                    <div class="text-slate-700 truncate flex justify-between px-1"><span>${match.teamB[0].name}</span><span class="text-[9px] font-bold opacity-40">(${levelLabels[match.teamB[0].level]})</span></div>
+                                    <div class="text-slate-700 truncate flex justify-between px-1"><span>${match.teamB[1].name}</span><span class="text-[9px] font-bold opacity-40">(${levelLabels[match.teamB[1].level]})</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                if (round.resting && round.resting.length > 0) {
+                    let restingNames = round.resting.map(m => `${m.name} (${levelLabels[m.level]})`).join(', ');
+                    roundHtml += `
+                        <div class="text-[11px] text-slate-400 bg-slate-50 px-2.5 py-1.5 rounded-lg flex items-center gap-1">
+                            <span>💤 <b>Nghỉ vòng này:</b> ${restingNames}</span>
+                        </div>
+                    `;
+                }
+
+                roundHtml += `</div></div>`;
+                scheduleContainer.innerHTML += roundHtml;
+            });
+        }
+
+        render();
+    </script>
+</body>
+</html>
