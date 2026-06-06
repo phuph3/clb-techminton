@@ -76,7 +76,7 @@
             </div>
 
             <button onclick="generateAllRounds()" class="admin-only w-full bg-gradient-to-r from-indigo-600 to-blue-500 text-white font-bold py-3 rounded-xl shadow-md cursor-pointer justify-center items-center">
-                🎲 Tự Động Xếp Toàn Bộ Vòng Đấu
+                🎲 Tự Động Xếp Vòng Đấu Cân Bằng Level
             </button>
 
             <div id="scheduleContainer" class="space-y-4"></div>
@@ -87,7 +87,7 @@
         <div class="bg-white rounded-2xl w-full max-w-md p-5 space-y-4 shadow-xl">
             <div>
                 <h3 class="font-bold text-base text-slate-800">Thêm hàng loạt</h3>
-                <p class="text-xs text-slate-400 mt-0.5">Nhập tên bình thường (mặc định Level B). Muốn gán level luôn thì gõ dạng: <span class="font-mono bg-slate-100 px-1 rounded text-red-500">Tên - A</span> hoặc <span class="font-mono bg-slate-100 px-1 rounded text-amber-500">Tên - C</span></p>
+                <p class="text-xs text-slate-400 mt-0.5">Nhập định dạng: <span class="font-mono text-red-500">Tên - A</span>, <span class="font-mono text-blue-500">Tên - B</span> hoặc <span class="font-mono text-amber-500">Tên - C</span></p>
             </div>
             <textarea id="bulkInput" rows="8" placeholder="Nguyễn Văn A - A&#10;Trần Thị B - B&#10;Lê Văn C - C" class="w-full p-3 border border-slate-200 rounded-xl text-sm font-mono focus:outline-indigo-500"></textarea>
             <div class="flex justify-end gap-2 text-sm font-medium">
@@ -98,7 +98,6 @@
     </div>
 
     <script>
-        // ĐIỀN THÔNG TIN KẾT NỐI JSONBIN CỦA BẠN VÀO ĐÂY
         const BIN_ID = "6a23e2ecda38895dfe903b0f"; 
         const MASTER_KEY = "$2a$10$yOZaOHQ26goa2W1RaXmo3OBw7rZy.Td1wg6qA1DYyRx.jRfvkpoWi"; 
 
@@ -109,9 +108,7 @@
         let isAdmin = false;
 
         const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('role') === 'admin') {
-            isAdmin = true;
-        }
+        if (urlParams.get('role') === 'admin') isAdmin = true;
 
         if (isAdmin) {
             document.querySelectorAll('.admin-only').forEach(el => {
@@ -123,39 +120,25 @@
             document.getElementById('roleDisplay').innerText = "📱 Chế độ: Thành viên (Chỉ xem lịch)";
         }
 
-        // Bản màu sắc riêng cho từng Level
+        const LEVEL_POINTS = { 'A': 3, 'B': 2, 'C': 1 };
+
         function getLevelStyles(level, isPlaying) {
             if (!isPlaying) return 'bg-slate-200 text-slate-400 line-through border-transparent';
-            
-            switch(level) {
-                case 'A': // Đỏ/Hồng đậm cho siêu sao
-                    return 'bg-rose-50 text-rose-700 border-rose-200';
-                case 'C': // Cam/Hổ phách cho người mới tập
-                    return 'bg-amber-50 text-amber-700 border-amber-200';
-                case 'B':
-                default: // Xanh dương trung cấp tiêu chuẩn
-                    return 'bg-blue-50 text-blue-700 border-blue-200';
-            }
+            if (level === 'A') return 'bg-rose-50 text-rose-700 border-rose-200';
+            if (level === 'C') return 'bg-amber-50 text-amber-700 border-amber-200';
+            return 'bg-blue-50 text-blue-700 border-blue-200';
         }
 
         function getLevelBadge(level) {
-            switch(level) {
-                case 'A': return '<span class="text-[9px] bg-rose-600 text-white px-1 rounded-sm mr-1 font-bold">A</span>';
-                case 'C': return '<span class="text-[9px] bg-amber-500 text-white px-1 rounded-sm mr-1 font-bold">C</span>';
-                case 'B':
-                default: return '<span class="text-[9px] bg-blue-600 text-white px-1 rounded-sm mr-1 font-bold">B</span>';
-            }
+            if (level === 'A') return '<span class="text-[9px] bg-rose-600 text-white px-1 rounded-sm mr-1 font-bold">A</span>';
+            if (level === 'C') return '<span class="text-[9px] bg-amber-500 text-white px-1 rounded-sm mr-1 font-bold">C</span>';
+            return '<span class="text-[9px] bg-blue-600 text-white px-1 rounded-sm mr-1 font-bold">B</span>';
         }
 
         async function loadDataFromCloud() {
-            if (!BIN_ID || BIN_ID.includes("CHÈN_")) {
-                document.getElementById('scheduleContainer').innerHTML = `<div class="text-center text-xs text-rose-500 font-bold p-4">Vui lòng mở file code điền BIN_ID và MASTER_KEY để kết nối dữ liệu!</div>`;
-                return;
-            }
+            if (!BIN_ID || BIN_ID.includes("CHÈN_")) return;
             try {
-                const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-                    headers: { "X-Master-Key": MASTER_KEY }
-                });
+                const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, { headers: { "X-Master-Key": MASTER_KEY } });
                 const resData = await res.json();
                 let data = resData.record;
                 members = data.members || [];
@@ -163,9 +146,7 @@
                 activeCourtsCount = data.activeCourtsCount || 1;
                 generatedSchedule = data.generatedSchedule || [];
                 render();
-            } catch (err) {
-                console.error("Lỗi tải data:", err);
-            }
+            } catch (err) { console.error(err); }
         }
 
         async function saveDataToCloud() {
@@ -174,29 +155,17 @@
                 document.getElementById('roleDisplay').innerText = "⏳ Đang đồng bộ lên đám mây...";
                 await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
                     method: 'PUT',
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-Master-Key": MASTER_KEY
-                    },
+                    headers: { "Content-Type": "application/json", "X-Master-Key": MASTER_KEY },
                     body: JSON.stringify({ members, totalRoundsSetting, activeCourtsCount, generatedSchedule })
                 });
                 document.getElementById('roleDisplay').innerText = "🔑 Đã phát sóng lịch mới thành công!";
                 render();
-            } catch (err) {
-                alert("Lỗi kết nối đám mây!");
-            }
+            } catch (err) { alert("Lỗi đám mây!"); }
         }
 
-        function changeCourts(val) {
-            if(!isAdmin) return;
-            activeCourtsCount = Math.max(1, activeCourtsCount + val);
-            render();
-        }
-        function changeRoundsSetting(val) {
-            if(!isAdmin) return;
-            totalRoundsSetting = Math.max(1, totalRoundsSetting + val);
-            render();
-        }
+        function changeCourts(val) { if(!isAdmin) return; activeCourtsCount = Math.max(1, activeCourtsCount + val); render(); }
+        function changeRoundsSetting(val) { if(!isAdmin) return; totalRoundsSetting = Math.max(1, totalRoundsSetting + val); render(); }
+        
         function addMember() {
             if(!isAdmin) return;
             const name = document.getElementById('memberNameInput').value.trim();
@@ -206,17 +175,39 @@
             document.getElementById('memberNameInput').value = '';
             render();
         }
-        function deleteMember(id) {
-            if(!isAdmin) return;
-            members = members.filter(m => m.id !== id);
-            generatedSchedule = [];
-            render();
-        }
-        function toggleStatus(id) {
-            if(!isAdmin) return;
-            members = members.map(m => { if(m.id === id) m.status = m.status === 'playing' ? 'resting' : 'playing'; return m; });
-            generatedSchedule = [];
-            render();
+        function deleteMember(id) { if(!isAdmin) return; members = members.filter(m => m.id !== id); generatedSchedule = []; render(); }
+        function toggleStatus(id) { if(!isAdmin) return; members = members.map(m => { if(m.id === id) m.status = m.status === 'playing' ? 'resting' : 'playing'; return m; }); generatedSchedule = []; render(); }
+
+        // THUẬT TOÁN TỐI ƯU CÂN BẰNG LEVEL CHO MỖI SÂN
+        function optimizeMatchUp(players) {
+            // Nhận vào 4 người, tìm cách chia thành 2 cặp sao cho tổng điểm chênh lệch ít nhất
+            let combinations = [
+                { teamA: [players[0], players[1]], teamB: [players[2], players[3]] },
+                { teamA: [players[0], players[2]], teamB: [players[1], players[3]] },
+                { teamA: [players[0], players[3]], teamB: [players[1], players[2]] }
+            ];
+
+            let bestMatch = combinations[0];
+            let minDiff = 999;
+
+            combinations.forEach(combo => {
+                let scoreA = LEVEL_POINTS[combo.teamA[0].level] + LEVEL_POINTS[combo.teamA[1].level];
+                let scoreB = LEVEL_POINTS[combo.teamB[0].level] + LEVEL_POINTS[combo.teamB[1].level];
+                let diff = Math.abs(scoreA - scoreB);
+
+                // Điểm phạt bổ sung nếu có kèo một cặp toàn người yếu (C+C) đấu với cặp có người cực mạnh (A+B hoặc A+A)
+                if ((combo.teamA[0].level === 'C' && combo.teamA[1].level === 'C' && (combo.teamB[0].level === 'A' || combo.teamB[1].level === 'A')) ||
+                    (combo.teamB[0].level === 'C' && combo.teamB[1].level === 'C' && (combo.teamA[0].level === 'A' || combo.teamA[1].level === 'A'))) {
+                    diff += 2; 
+                }
+
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    bestMatch = combo;
+                }
+            });
+
+            return bestMatch;
         }
 
         function generateAllRounds() {
@@ -232,23 +223,31 @@
             for (let r = 1; r <= totalRoundsSetting; r++) {
                 let mustPlayPool = [], normalPool = [];
                 availableMembers.forEach(m => { if (consecutiveRest[m.id] >= 2) mustPlayPool.push(m); else normalPool.push(m); });
-                normalPool.sort((a, b) => playedCounts[a.id] - playedCounts[b.id] || Math.random() - 0.5);
-                let pool = [...mustPlayPool, ...normalPool.slice(0, requiredPlayers - mustPlayPool.length)];
                 
-                let bestArrangement = [...pool].sort(() => Math.random() - 0.5);
+                // Ưu tiên xếp những người chơi ít trận trước để công bằng số trận
+                normalPool.sort((a, b) => playedCounts[a.id] - playedCounts[b.id] || Math.random() - 0.5);
+                let roundPlayers = [...mustPlayPool, ...normalPool.slice(0, requiredPlayers - mustPlayPool.length)];
+                
+                // Trộn ngẫu nhiên nhóm người được chọn để phân bổ vào các sân
+                roundPlayers.sort(() => Math.random() - 0.5);
+                
                 let roundMatches = [];
                 let playingIds = [];
 
                 for (let i = 0; i < activeCourtsCount; i++) {
                     let idx = i * 4;
-                    let p1 = bestArrangement[idx], p2 = bestArrangement[idx+1], p3 = bestArrangement[idx+2], p4 = bestArrangement[idx+3];
-                    playedCounts[p1.id]++; playedCounts[p2.id]++; playedCounts[p3.id]++; playedCounts[p4.id]++;
-                    playingIds.push(p1.id, p2.id, p3.id, p4.id);
+                    let courtFour = [roundPlayers[idx], roundPlayers[idx+1], roundPlayers[idx+2], roundPlayers[idx+3]];
+                    
+                    // Chạy bộ lọc tối ưu sắp xếp cặp đấu cho 4 người trên sân này
+                    let optimized = optimizeMatchUp(courtFour);
 
-                    roundMatches.push({ 
-                        courtNumber: i + 1, 
-                        teamA: [p1, p2], 
-                        teamB: [p3, p4]
+                    optimized.teamA.forEach(p => { playedCounts[p.id]++; playingIds.push(p.id); });
+                    optimized.teamB.forEach(p => { playedCounts[p.id]++; playingIds.push(p.id); });
+
+                    roundMatches.push({
+                        courtNumber: i + 1,
+                        teamA: optimized.teamA,
+                        teamB: optimized.teamB
                     });
                 }
 
@@ -263,48 +262,25 @@
             render();
         }
 
-        function openBulkModal() { 
-            document.getElementById('bulkInput').value = '';
-            document.getElementById('bulkModal').classList.remove('hidden'); 
-        }
-        function closeBulkModal() { 
-            document.getElementById('bulkModal').classList.add('hidden'); 
-        }
+        function openBulkModal() { document.getElementById('bulkInput').value = ''; document.getElementById('bulkModal').classList.remove('hidden'); }
+        function closeBulkModal() { document.getElementById('bulkModal').classList.add('hidden'); }
         
         function submitBulkMembers() {
             const text = document.getElementById('bulkInput').value;
             text.split('\n').forEach(line => {
-                let raw = line.trim(); 
-                if(!raw) return;
-                
-                let name = raw;
-                let level = 'B'; // mặc định nếu không điền gì
-                
+                let raw = line.trim(); if(!raw) return;
+                let name = raw, level = 'B';
                 if (raw.includes('-')) {
-                    let parts = raw.split('-');
-                    name = parts[0].trim();
+                    let parts = raw.split('-'); name = parts[0].trim();
                     let parsedLevel = parts[1].trim().toUpperCase();
-                    if (['A', 'B', 'C'].includes(parsedLevel)) {
-                        level = parsedLevel;
-                    }
+                    if (['A', 'B', 'C'].includes(parsedLevel)) level = parsedLevel;
                 }
-                
-                if(name) {
-                    members.push({ id: 'm_'+Date.now()+Math.random(), name, level, status: 'playing' });
-                }
+                if(name) members.push({ id: 'm_'+Date.now()+Math.random(), name, level, status: 'playing' });
             });
-            generatedSchedule = [];
-            closeBulkModal();
-            render();
+            generatedSchedule = []; closeBulkModal(); render();
         }
 
-        function resetData() { 
-            if(confirm("Bạn có chắc chắn muốn xóa hết toàn bộ thành viên và lịch đấu không?")) { 
-                members = []; 
-                generatedSchedule = []; 
-                render(); 
-            } 
-        }
+        function resetData() { if(confirm("Xóa hết?")) { members = []; generatedSchedule = []; render(); } }
 
         function render() {
             document.getElementById('courtCountDisplay').innerText = activeCourtsCount;
@@ -318,7 +294,7 @@
                 memberListDiv.innerHTML += `
                     <div class="flex items-center border rounded-xl px-2 py-1 text-xs font-semibold ${colors}">
                         <span ${isAdmin ? `onclick="toggleStatus('${m.id}')"` : ''} class="${isAdmin ? 'cursor-pointer select-none' : ''}">
-                            ${isPlaying ? '🟢 ' : '⚫ '} ${isPlaying ? getLevelBadge(m.level) : ''}${m.name}
+                            ${isPlaying ? '🟢 ' : '⚫ '}${isPlaying ? getLevelBadge(m.level) : ''}${m.name}
                         </span>
                         ${isAdmin ? `<button onclick="deleteMember('${m.id}')" class="text-slate-400 hover:text-red-500 font-bold ml-1 text-sm cursor-pointer">×</button>` : ''}
                     </div>
@@ -328,7 +304,7 @@
             const scheduleContainer = document.getElementById('scheduleContainer');
             scheduleContainer.innerHTML = '';
             if (generatedSchedule.length === 0) {
-                scheduleContainer.innerHTML = `<div class="text-center py-8 text-xs text-slate-400">Chưa có lịch đấu được phát sóng công khai.</div>`;
+                scheduleContainer.innerHTML = `<div class="text-center py-8 text-xs text-slate-400">Chưa có lịch đấu được phát sóng.</div>`;
                 return;
             }
 
@@ -344,7 +320,6 @@
                     roundHtml += `
                         <div class="bg-slate-50 border border-slate-100 rounded-xl p-3 flex flex-col items-center relative space-y-2">
                             <div class="w-full text-[10px] font-bold text-slate-400 uppercase text-left">🏸 Sân số ${match.courtNumber}</div>
-                            
                             <div class="w-full grid grid-cols-7 items-center text-center text-xs font-semibold">
                                 <div class="col-span-3 bg-white p-2 rounded-xl border border-slate-100 shadow-2xs text-left px-3 space-y-1">
                                     <div class="truncate text-slate-700 flex items-center">${getLevelBadge(match.teamA[0].level)}${match.teamA[0].name}</div>
