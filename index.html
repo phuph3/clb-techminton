@@ -120,7 +120,6 @@
         let isAdmin = false;
         let currentLang = 'vi';
 
-        // Object lưu trạng thái đóng/mở thủ công của viewer độc lập (ví dụ: { "0": true } tức là vòng index 0 đang ép hiển thị mở rộng)
         let viewerExpandedRounds = {};
 
         const i18n = {
@@ -182,7 +181,7 @@
                 noSchedule: "公開されたスケジュールはまだありません。",
                 roundTxt: "ラウンド",
                 courtTxt: "コート",
-                restTxt: "💤 このラウンドの休憩:",
+                restTxt: "💤 このラウンド의 休憩:",
                 lblBulkTitle: "メンバー一括追加",
                 lblBulkDesc: "1行に1人ずつ入力。形式: 名前 - A, 名前 - B または 名前 - C",
                 btnBulkCancel: "キャンセル",
@@ -206,7 +205,6 @@
             });
         }
 
-        // --- TÍNH NĂNG 1: TỰ ĐỘNG RELOAD MỖI 10 GIÂY DÀNH CHO VIEWER ---
         if (!isAdmin) {
             setInterval(async () => {
                 if (!BIN_ID || BIN_ID.includes("CHÈN_")) return;
@@ -220,7 +218,7 @@
                     generatedSchedule = data.generatedSchedule || [];
                     render();
                 } catch (err) { console.error("Lỗi tự động cập nhật:", err); }
-            }, 10000); // 10000ms = 10 giây
+            }, 10000);
         }
 
         const LEVEL_POINTS = { 'A': 3, 'B': 2, 'C': 1 };
@@ -290,7 +288,6 @@
             render();
         }
 
-        // --- TÍNH NĂNG 2: HÀM LOGIC CLICK ĐỂ ĐÓNG/MỞ VÒNG ĐẤU ĐÃ KẾT THÚC ---
         function toggleViewerExpand(rIndex) {
             viewerExpandedRounds[rIndex] = !viewerExpandedRounds[rIndex];
             render();
@@ -317,6 +314,7 @@
             return bestMatch;
         }
 
+        // --- HÀM TỰ ĐỘNG XẾP LỊCH ĐÃ ĐƯỢC NÂNG CẤP TOÀN DIỆN ---
         function generateAllRounds() {
             if(!isAdmin) return;
             let availableMembers = members.filter(m => m.status === 'playing');
@@ -327,32 +325,90 @@
             availableMembers.forEach(m => { playedCounts[m.id] = 0; consecutiveRest[m.id] = 0; });
 
             let tempSchedule = [];
+
             for (let r = 1; r <= totalRoundsSetting; r++) {
-                let mustPlayPool = [], normalPool = [];
-                availableMembers.forEach(m => { if (consecutiveRest[m.id] >= 2) mustPlayPool.push(m); else normalPool.push(m); });
-                normalPool.sort((a, b) => playedCounts[a.id] - playedCounts[b.id] || Math.random() - 0.5);
-                let roundPlayers = [...mustPlayPool, ...normalPool.slice(0, requiredPlayers - mustPlayPool.length)];
-                roundPlayers.sort(() => Math.random() - 0.5);
-                
+                let candidates = [...availableMembers];
+                candidates.sort((a, b) => {
+                    let scoreA = (consecutiveRest[a.id] >= 2) ? -999 : playedCounts[a.id];
+                    let scoreB = (consecutiveRest[b.id] >= 2) ? -999 : playedCounts[b.id];
+                    return scoreA - scoreB || Math.random() - 0.5;
+                });
+
                 let roundMatches = [];
                 let playingIds = [];
-                for (let i = 0; i < activeCourtsCount; i++) {
-                    let idx = i * 4;
-                    let courtFour = [roundPlayers[idx], roundPlayers[idx+1], roundPlayers[idx+2], roundPlayers[idx+3]];
-                    let optimized = optimizeMatchUp(courtFour);
-                    optimized.teamA.forEach(p => { playedCounts[p.id]++; playingIds.push(p.id); });
-                    optimized.teamB.forEach(p => { playedCounts[p.id]++; playingIds.push(p.id); });
-                    roundMatches.push({ courtNumber: i + 1, teamA: optimized.teamA, teamB: optimized.teamB });
+
+                for (let court = 0; court < activeCourtsCount; court++) {
+                    let pool = candidates.filter(c => !playingIds.includes(c.id));
+                    
+                    let bestFour = null;
+                    let bestMatchUp = null;
+                    let minDiff = 999;
+
+                    let scanLimit = Math.min(pool.length, 15);
+                    
+                    for (let i = 0; i < scanLimit - 3; i++) {
+                        for (let j = i + 1; j < scanLimit - 2; j++) {
+                            for (let k = j + 1; k < scanLimit - 1; k++) {
+                                for (let l = k + 1; l < scanLimit; l++) {
+                                    let testPlayers = [pool[i], pool[j], pool[k], pool[l]];
+                                    let match = optimizeMatchUp(testPlayers);
+                                    
+                                    let scoreA = LEVEL_POINTS[match.teamA[0].level] + LEVEL_POINTS[match.teamA[1].level];
+                                    let scoreB = LEVEL_POINTS[match.teamB[0].level] + LEVEL_POINTS[match.teamB[1].level];
+                                    let currentDiff = Math.abs(scoreA - scoreB);
+
+                                    if ((match.teamA[0].level === 'C' && match.teamA[1].level === 'C' && (match.teamB[0].level === 'A' || match.teamB[1].level === 'A')) ||
+                                        (match.teamB[0].level === 'C' && match.teamB[1].level === 'C' && (match.teamA[0].level === 'A' || match.teamA[1].level === 'A'))) {
+                                        currentDiff += 2; 
+                                    }
+
+                                    let priorityBonus = (i + j + k + l) * 0.01;
+                                    let finalScore = currentDiff + priorityBonus;
+
+                                    if (finalScore < minDiff) {
+                                        minDiff = finalScore;
+                                        bestFour = testPlayers;
+                                        bestMatchUp = match;
+                                    }
+                                    if (currentDiff === 0 && i === 0) break;
+                                }
+                                if (minDiff < 1 && i === 0) break;
+                            }
+                            if (minDiff < 1 && i === 0) break;
+                        }
+                        if (minDiff < 1) break;
+                    }
+
+                    bestMatchUp.teamA.forEach(p => { playedCounts[p.id]++; playingIds.push(p.id); });
+                    bestMatchUp.teamB.forEach(p => { playedCounts[p.id]++; playingIds.push(p.id); });
+
+                    roundMatches.push({
+                        courtNumber: court + 1,
+                        teamA: bestMatchUp.teamA,
+                        teamB: bestMatchUp.teamB
+                    });
                 }
+
                 let restingPeople = [];
                 availableMembers.forEach(m => {
-                    if (playingIds.includes(m.id)) consecutiveRest[m.id] = 0;
-                    else { consecutiveRest[m.id]++; restingPeople.push(m); }
+                    if (playingIds.includes(m.id)) {
+                        consecutiveRest[m.id] = 0;
+                    } else {
+                        consecutiveRest[m.id]++;
+                        restingPeople.push(m);
+                    }
                 });
-                tempSchedule.push({ roundNumber: r, matches: roundMatches, resting: restingPeople, checked: false });
+
+                tempSchedule.push({
+                    roundNumber: r,
+                    matches: roundMatches,
+                    resting: restingPeople,
+                    checked: false
+                });
             }
+
             generatedSchedule = tempSchedule;
-            viewerExpandedRounds = {}; // Reset bộ nhớ thu gọn khi tạo mới lịch
+            viewerExpandedRounds = {}; 
             render();
         }
 
@@ -426,8 +482,6 @@
 
             generatedSchedule.forEach((round, rIndex) => {
                 const isChecked = round.checked === true;
-                
-                // Thu gọn nếu: Vòng đấu đã kết thúc VÀ Viewer không chủ động bấm mở rộng ra
                 const isCollapsed = isChecked && !viewerExpandedRounds[rIndex];
 
                 let roundClass = "border border-slate-200 rounded-2xl p-4 bg-white shadow-xs space-y-3 transition-all duration-300";
@@ -435,7 +489,6 @@
                     roundClass += " round-completed";
                 }
 
-                // Tiêu đề của vòng đấu có thêm sự kiện click đóng mở cho Viewer tại thanh header
                 let roundHtml = `
                     <div class="${roundClass}">
                         <div class="flex justify-between items-center border-b border-slate-100 pb-1.5 cursor-pointer select-none" onclick="if(generatedSchedule[${rIndex}].checked) toggleViewerExpand(${rIndex})">
@@ -456,7 +509,6 @@
                             </div>
                         </div>`;
                 
-                // Nếu đang ở trạng thái thu gọn (collapsed), không render danh sách trận đấu bên dưới
                 if (!isCollapsed) {
                     roundHtml += `<div class="grid grid-cols-1 gap-3">`;
                     
